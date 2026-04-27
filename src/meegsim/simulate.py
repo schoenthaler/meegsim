@@ -561,6 +561,14 @@ def _simulate(
         sources.extend(sg.simulate(src, times, random_state=seeds.pop(0)))
     sources = {s.name: s for s in sources}
 
+    # Downcast waveforms to float32 (signal + noise)
+    for s in sources.values():
+        s.waveform = np.asarray(s.waveform, dtype=np.float32, order="C")
+    for s in noise_sources.values():
+        s.waveform = np.asarray(s.waveform, dtype=np.float32, order="C")
+    #downcasted for safety
+    base_std = np.float32(base_std)
+
     # Setup the desired coupling patterns
     # The time courses are changed for some of the sources in the process
     if is_coupling_required:
@@ -584,4 +592,11 @@ def _simulate(
         tstep = times[1] - times[0]
         _adjust_snr_local(src, fwd, tstep, sources, source_groups, noise_sources)
 
+    # downcast again 
+    
+    for s in sources.values():
+        s.waveform = np.asarray(s.waveform, dtype=np.float32, order="C")
+    for s in noise_sources.values():
+        s.waveform = np.asarray(s.waveform, dtype=np.float32, order="C")
+        
     return sources, noise_sources

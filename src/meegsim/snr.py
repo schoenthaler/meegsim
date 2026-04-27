@@ -72,7 +72,7 @@ def get_sensor_space_variance(stc, fwd, fmin=None, fmax=None, filter=False):
             "simulated sources, so the SNR cannot be adjusted."
         )
 
-    raw_data = raw.get_data()
+    raw_data = raw.get_data().astype(np.float32, copy=False)
     if filter:
         if fmin is None or fmax is None:
             raise ValueError(

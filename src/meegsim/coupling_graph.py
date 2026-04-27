@@ -111,9 +111,10 @@ def _set_coupling(sources, coupling_graph, times, random_state):
         coupling_fn = tmp_coupling_params.pop("method")
 
         # Adjust the waveform of s2 to be coupled with s1
-        s2.waveform = coupling_fn(
+        s2.waveform = np.array(
+            coupling_fn(
             s1.waveform,
             get_sfreq(times),
             **tmp_coupling_params,
             random_state=seeds.pop(0),
-        )
+        ), dtype=np.float32, order="C")
