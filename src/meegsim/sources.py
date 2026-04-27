@@ -214,6 +214,9 @@ class PointSource(_BaseSource):
             if callable(waveform)
             else waveform
         )
+
+        data = np.asarray(data, dtype=np.float32, order="C")  # <-- added
+        
         if data.shape[0] != n_sources:
             raise ValueError("The number of sources in waveform does not match")
         if data.shape[1] != len(times):
@@ -281,8 +284,11 @@ class PatchSource(_BaseSource):
     def data(self):
         # NOTE: the scaling factor is introduced to make the total variance of
         # patch activity invariant to the number of vertices in the patch
-        scaling_factor = 1 / np.sqrt(len(self.vertno))
-        return np.tile(self.waveform, (len(self.vertno), 1)) * scaling_factor
+        #scaling_factor = 1 / np.sqrt(len(self.vertno))
+
+        scaling_factor = np.float32(1.0 / np.sqrt(len(self.vertno)))
+        return np.tile(self.waveform, (len(self.vertno), 1)).astype(np.float32, copy=False) * scaling_factor
+
 
     @property
     def vertices(self):
@@ -320,6 +326,9 @@ class PatchSource(_BaseSource):
             if callable(waveform)
             else waveform
         )
+
+        data = np.asarray(data, dtype=np.float32, order="C")  # <-- added
+        
         if data.shape[0] != n_sources:
             raise ValueError("The number of sources in waveform does not match")
         if data.shape[1] != len(times):
@@ -413,12 +422,19 @@ def _combine_sources_into_stc(sources, src, tstep):
     vertices = []
     for s in sources:
         s._check_compatibility(src)
-        data.append(s.data)
-        vertices.append(s.vertices)
+
+        # Ensure float32 early to reduce peak memory during stacking
+        s_data = np.asarray(s.data, dtype=np.float32, order="C")
+        data.append(s_data)
+
+        # Ensure integer dtype for vertex indices
+        s_vertices = np.asarray(s.vertices, dtype=np.int32, order="C")
+        vertices.append(s_vertices)
 
     # Stack the data and vertices of all sources
-    data_stacked = np.vstack(data)
-    vertices_stacked = np.vstack(vertices)
+    # Stack the data and vertices of all sources
+    data_stacked = np.vstack(data).astype(np.float32, copy=False)
+    vertices_stacked = np.vstack(vertices).astype(np.int32, copy=False)
 
     # Resolve potential repetitions: if several signals apply to the same
     # vertex, they should be summed
@@ -427,13 +443,14 @@ def _combine_sources_into_stc(sources, src, tstep):
     n_samples = data_stacked.shape[1]
 
     # Place the time courses correctly accounting for repetitions
-    data = np.zeros((n_unique, n_samples))
+    data = np.zeros((n_unique, n_samples), dtype=np.float32)
     for idx_orig, idx_new in enumerate(indices):
         data[idx_new, :] += data_stacked[idx_orig, :]
 
     # Convert vertices to the MNE format
     vertices = vertices_to_mne(unique_vertices, src)
-
+    vertices = [np.asarray(v, dtype=np.int32) for v in vertices]
+    
     return mne.SourceEstimate(data, vertices, tmin=0, tstep=tstep)
 
 
